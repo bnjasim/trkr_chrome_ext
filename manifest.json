@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Twitter Time Monitor",
+  "version": "1.0",
+  "description": "Monitor time spent on Twitter",
+  "permissions": ["tabs", "storage", "alarms"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://twitter.com/*", "*://x.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
