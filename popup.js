@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+  function updatePopup() {
     chrome.runtime.sendMessage({ action: 'getTotalTime' }, (response) => {
       const totalMinutes = Math.round(response.totalTime / 60000);
       document.getElementById('totalTime').textContent = totalMinutes;
@@ -8,6 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
         warningElement.textContent = "You've spent over an hour on Twitter today!";
       } else if (totalMinutes > 30) {
         warningElement.textContent = "You've spent over 30 minutes on Twitter today.";
+      } else {
+        warningElement.textContent = '';
       }
     });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    updatePopup();
+    setInterval(updatePopup, 1000); // Update every second
   });

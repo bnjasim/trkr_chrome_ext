@@ -3,25 +3,37 @@ let totalTime = 0;
 let isOnTwitter = false;
 let lastResetDate = new Date().toDateString();
 
-// Add this to initialize the values when the extension starts
-chrome.runtime.onStartup.addListener(() => {
-    chrome.storage.local.get(['totalTime', 'lastResetDate'], (result) => {
-      totalTime = result.totalTime || 0;
-      lastResetDate = result.lastResetDate || new Date().toDateString();
-      resetDailyTimer();
-    });
-  });
+function resetDailyTimer() {
+  const today = new Date().toDateString();
+  if (today !== lastResetDate) {
+    totalTime = 0;
+    lastResetDate = today;
+    chrome.storage.local.set({ totalTime: totalTime, lastResetDate: lastResetDate });
+  }
+}
+
+function updateTotalTime() {
+  if (isOnTwitter) {
+    const currentTime = Date.now();
+    totalTime += currentTime - startTime;
+    startTime = currentTime;
+    chrome.storage.local.set({ totalTime: totalTime, lastResetDate: lastResetDate });
+  }
+}
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  resetDailyTimer();
   if (changeInfo.status === 'complete' && (tab.url.includes('twitter.com') || tab.url.includes('x.com'))) {
     isOnTwitter = true;
     startTime = Date.now();
     chrome.alarms.create('twitterWarning', { delayInMinutes: 5 });
+    chrome.alarms.create('updateTimer', { periodInMinutes: 1/60 }); // Update every second
   } else if (changeInfo.status === 'complete' && !(tab.url.includes('twitter.com') || tab.url.includes('x.com'))) {
     if (isOnTwitter) {
       isOnTwitter = false;
       updateTotalTime();
       chrome.alarms.clear('twitterWarning');
+      chrome.alarms.clear('updateTimer');
     }
   }
 });
@@ -33,29 +45,22 @@ chrome.alarms.onAlarm.addListener((alarm) => {
         chrome.tabs.sendMessage(tabs[0].id, { action: 'showWarning' });
       }
     });
+  } else if (alarm.name === 'updateTimer') {
+    updateTotalTime();
   }
 });
 
-// Modify the updateTotalTime function
-function updateTotalTime() {
-    const currentTime = Date.now();
-    totalTime += currentTime - startTime;
-    chrome.storage.local.set({ totalTime: totalTime, lastResetDate: lastResetDate });
-  }
-
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getTotalTime') {
+    updateTotalTime(); // Update before sending
     sendResponse({ totalTime: totalTime });
   }
 });
 
-function resetDailyTimer() {
-  const today = new Date().toDateString();
-  if (today !== lastResetDate) {
-    totalTime = 0;
-    lastResetDate = today;
-    chrome.storage.local.set({ totalTime: totalTime, lastResetDate: lastResetDate });
-  }
-}
-
+chrome.runtime.onStartup.addListener(() => {
+  chrome.storage.local.get(['totalTime', 'lastResetDate'], (result) => {
+    totalTime = result.totalTime || 0;
+    lastResetDate = result.lastResetDate || new Date().toDateString();
+    resetDailyTimer();
+  });
+});
